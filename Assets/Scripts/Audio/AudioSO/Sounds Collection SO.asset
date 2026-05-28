@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31806670731ecbb4baba6bbeeaa2dd3f, type: 3}
+  m_Name: Sounds Collection SO
+  m_EditorClassIdentifier: Assembly-CSharp::SoundsCollectionSO
+  MenuMusic: []
+  GameMusic:
+  - {fileID: 11400000, guid: 810febd169cc40b4899e6a77adeeeb57, type: 2}
+  Walk:
+  - {fileID: 11400000, guid: f16095de373fcee418cb4aef5300c968, type: 2}
+  - {fileID: 11400000, guid: 5df8c250e8c9fc843bf5cc81bee2a451, type: 2}
+  - {fileID: 11400000, guid: 0b68d346d1b99fc48a4100b2f25789ae, type: 2}
+  - {fileID: 11400000, guid: 8cbcc9a2ea765344892af343c7bf2f7a, type: 2}
+  Jump:
+  - {fileID: 11400000, guid: b1c80b612df7d9046914f5b3dcb254dc, type: 2}
+  - {fileID: 11400000, guid: 3511a3cd3a416a84588aaa82e32d4b3b, type: 2}
+  - {fileID: 11400000, guid: 57882bdf4d9a43e4bbfde407dc753016, type: 2}
+  Land:
+  - {fileID: 11400000, guid: 9d0066ef953f10b49a703e5612d60bb3, type: 2}
+  - {fileID: 11400000, guid: 19cfe78e74009934894c6104121fff49, type: 2}
+  HeadHit:
+  - {fileID: 11400000, guid: c11cdf860d5ab644780e831e637e3ccc, type: 2}
+  WallHit: []
+  BonusCubeHit:
+  - {fileID: 11400000, guid: db7b87212f8eb214b9e0bc4ea409f87c, type: 2}
+  BonusEffect: []

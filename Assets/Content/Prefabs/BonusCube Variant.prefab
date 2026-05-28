@@ -55,5 +55,64 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1266865026557216, guid: eeafc524949dd3844847150088fcfd4b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1812732456361197836}
   m_SourcePrefab: {fileID: 100100000, guid: eeafc524949dd3844847150088fcfd4b, type: 3}
+--- !u!1 &3310915663862022170 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1266865026557216, guid: eeafc524949dd3844847150088fcfd4b, type: 3}
+  m_PrefabInstance: {fileID: 3311901053047743802}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1812732456361197836
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3310915663862022170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef6f541b23e23214b873ed9c8f51dea1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BonusCube
+  _playerLayer:
+    serializedVersion: 2
+    m_Bits: 1
+  _bottomHitTolerance: 0.18
+  _hitCooldown: 0.25
+  _damageNumberPrefab: {fileID: 3074639915939771632, guid: f7ff69e67350ccb499fe3d471d5836a3, type: 3}
+  _damageNumberSpawnPoint: {fileID: 6093970086066464836, guid: f7ff69e67350ccb499fe3d471d5836a3, type: 3}
+  _bonusValue: 1
+  _visualRoot: {fileID: 0}
+  _punchDownDistance: 0.12
+  _impactDuration: 0.06
+  _returnDuration: 0.12
+  _returnCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _hitParticles: {fileID: 0}
+  _audioSource: {fileID: 0}
+  _hitClip: {fileID: 0}

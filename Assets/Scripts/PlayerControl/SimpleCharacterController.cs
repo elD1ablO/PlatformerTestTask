@@ -16,18 +16,26 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private readonly int _movementInputHeldHash = Animator.StringToHash("MovementInputHeld");
 
     [Header("Components")]
-    [SerializeField] 
+    [SerializeField]
     private InputReader _inputReader;
-    [SerializeField] 
+
+    [SerializeField]
     private Animator _animator;
-    [SerializeField] 
+
+    [SerializeField]
     private CharacterController _controller;
-    [SerializeField] 
+
+    [SerializeField]
     private Transform _modelTransform;
+
+    [SerializeField]
+    private SphereCollider _blockHitCollider;
 
     [Header("Movement Settings")]
     [SerializeField]
     private float _moveSpeed = 5f;
+    [SerializeField]
+    private float _sprintMoveSpeed = 7f;
     [SerializeField]
     private float _acceleration = 25f;
     [SerializeField]
@@ -36,7 +44,6 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private float _airControlMultiplier = 0.6f;
     [SerializeField]
     private float _rotationSpeed = 10f;
-
     [Header("Jump Settings")]
     [SerializeField]
     private float _jumpForce = 10f;
@@ -52,6 +59,10 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private float _fallGravityMultiplier = 3f;
     [SerializeField]
     private float _lowJumpGravityMultiplier = 4f;
+    [SerializeField]
+    private float _blockHitFallBoost = 18f;
+    [SerializeField]
+    private float _wallNormalThreshold = 0.6f;
 
     [Header("Ground Check")]
     [SerializeField]
@@ -60,9 +71,17 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private float _groundedOffset = 0.08f;
     [SerializeField]
     private float _groundCheckRadius = 0.22f;
-        
+
+    [Header("Walk Audio")]
+    [SerializeField]
+    private float _walkSoundInterval = 0.35f;
+    [SerializeField]
+    private float _sprintSoundInterval = 0.25f;
+    [SerializeField]
+    private float _minimumWalkSpeed = 1.2f;
+
     [Header("Respawn data")]
-    [SerializeField] 
+    [SerializeField]
     private Vector3 _initialPosition = new Vector3(0f, 0f, 0f);
 
     private Vector3 _velocity;
@@ -80,11 +99,16 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private float _coyoteTimeCounter;
     private float _jumpBufferCounter;
     private bool _isJumpHeld;
+    private bool _isSprinting;
+    private float _walkSoundTimer;
 
     private void OnEnable()
     {
         _inputReader.onJumpPerformed += OnJump;
         _inputReader.onJumpCanceled += OnJumpCanceled;
+
+        _inputReader.onSprintActivated += OnSprintActivated;
+        _inputReader.onSprintDeactivated += OnSprintDeactivated;
     }
 
     private void Update()
@@ -97,16 +121,26 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         FaceMoveDirection();
         ApplyGravity();
         Move();
+        HandleWalkAudio();
         UpdateAnimator();
     }
 
     private void CalculateMoveDirection()
     {
         _moveDirection = new Vector3(_inputReader._moveComposite.x, 0f, 0f);
+
         _movementInputHeld = _moveDirection.magnitude > 0.01f;
 
-        float targetSpeedX = _moveDirection.x * _moveSpeed;
-        float speedChangeRate = _movementInputHeld ? _acceleration : _deceleration;
+
+        float currentMaxSpeed = _isSprinting
+            ? _sprintMoveSpeed
+            : _moveSpeed;
+
+        float targetSpeedX = _moveDirection.x * currentMaxSpeed;
+
+        float speedChangeRate = _movementInputHeld
+            ? _acceleration
+            : _deceleration;
 
         if (!_isGrounded)
         {
@@ -131,37 +165,74 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     {
         if (_speed2D < 0.01f)
         {
-            _currentGait = 0; // Idle
+            _currentGait = 0;
         }
         else if (_speed2D < _moveSpeed * 0.5f)
         {
-            _currentGait = 1; // Walk
+            _currentGait = 1;
         }
         else
         {
-            _currentGait = 2; // Run
+            _currentGait = 2;
         }
     }
 
     private void CheckIfStopped()
     {
-        _isStopped = _moveDirection.magnitude == 0 && _speed2D < 0.5f;
+        _isStopped = _moveDirection.magnitude == 0f && _speed2D < 0.5f;
         _isWalking = !_isStopped && _isGrounded;
     }
 
     private void FaceMoveDirection()
     {
         if (_modelTransform == null)
+        {
             return;
+        }
 
         if (_moveDirection.magnitude > 0.01f)
         {
             Vector3 faceDirection = new Vector3(_velocity.x, 0f, 0f);
+
             if (faceDirection != Vector3.zero)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(faceDirection);
-                _modelTransform.rotation = Quaternion.Slerp(_modelTransform.rotation, targetRotation, _rotationSpeed * Time.deltaTime);
+
+                _modelTransform.rotation = Quaternion.Slerp(
+                    _modelTransform.rotation,
+                    targetRotation,
+                    _rotationSpeed * Time.deltaTime
+                );
             }
+        }
+    }
+
+    private void HandleWalkAudio()
+    {
+        if (!_isGrounded || _speed2D < _minimumWalkSpeed)
+        {
+            _walkSoundTimer = 0f;
+            return;
+        }
+
+        bool isSprinting = _speed2D > (_moveSpeed + 0.5f);
+
+        float currentInterval = isSprinting
+            ? _sprintSoundInterval
+            : _walkSoundInterval;
+
+        _walkSoundTimer -= Time.deltaTime;
+
+        if (_walkSoundTimer > 0f)
+        {
+            return;
+        }
+
+        _walkSoundTimer = currentInterval;
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayWalk();
         }
     }
 
@@ -170,10 +241,12 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         _jumpBufferCounter = _jumpBufferTime;
         _isJumpHeld = true;
     }
+
     private void OnJumpCanceled()
     {
         _isJumpHeld = false;
     }
+
     private void UpdateJumpState()
     {
         if (_isGrounded)
@@ -196,6 +269,7 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
             _jumpBufferCounter -= Time.deltaTime;
         }
     }
+
     private void HandleJump()
     {
         if (_jumpBufferCounter <= 0f)
@@ -213,10 +287,13 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
 
         _velocity.y = _jumpForce;
 
+        AudioManager.Instance.PlayJump();        
+
         _jumpBufferCounter = 0f;
         _coyoteTimeCounter = 0f;
         _jumpCount++;
     }
+
     private void ApplyGravity()
     {
         float gravityMultiplier = 1f;
@@ -269,21 +346,87 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         _animator.SetBool(_isStoppedHash, _isStopped);
         _animator.SetBool(_movementInputHeldHash, _movementInputHeld);
     }
+    private void OnSprintActivated()
+    {
+        _isSprinting = true;
+    }
+
+    private void OnSprintDeactivated()
+    {
+        _isSprinting = false;
+    }
 
     private void OnDisable()
     {
         _inputReader.onJumpPerformed -= OnJump;
         _inputReader.onJumpCanceled -= OnJumpCanceled;
+
+        _inputReader.onSprintActivated -= OnSprintActivated;
+        _inputReader.onSprintDeactivated -= OnSprintDeactivated;
     }
 
     public void KillZoneEntered()
     {
         _controller.enabled = false;
+
         transform.position = _initialPosition;
+
         _controller.enabled = true;
 
         _velocity = Vector3.zero;
         _moveDirection = Vector3.zero;
         _speed2D = 0f;
+    }
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (Mathf.Abs(hit.normal.x) > _wallNormalThreshold)
+        {
+            bool movingIntoWall =
+                Mathf.Sign(_velocity.x) == -Mathf.Sign(hit.normal.x);
+
+            if (movingIntoWall)
+            {
+                _velocity.x = 0f;
+            }
+
+            return;
+        }
+
+        if (_velocity.y <= 0f)
+        {
+            return;
+        }
+
+        Vector3 hitDirection = hit.point - transform.position;
+
+        bool hitFromBelow = hitDirection.y > 0.15f;
+
+        if (!hitFromBelow)
+        {
+            return;
+        }
+
+        BonusCube bonusCube = hit.collider.GetComponentInParent<BonusCube>();
+
+        if (bonusCube != null)
+        {
+            bonusCube.TryHitFromCharacterController(_blockHitCollider);
+            AudioManager.Instance.PlayBonusCubeHit();
+        }
+        else
+        {            
+            AudioManager.Instance.PlayHeadHit();            
+        }
+
+        ForceFallAfterBlockHit();
+    }
+    private void ForceFallAfterBlockHit()
+    {
+        _isJumpHeld = false;
+        _jumpBufferCounter = 0f;
+        _coyoteTimeCounter = 0f;
+
+        _velocity.y = -Mathf.Abs(_blockHitFallBoost);
     }
 }
