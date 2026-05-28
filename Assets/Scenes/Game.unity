@@ -1354,13 +1354,22 @@ MonoBehaviour:
   _controller: {fileID: 1594576065}
   _modelTransform: {fileID: 1169405352}
   _moveSpeed: 5
-  _jumpForce: 9
-  _gravityMultiplier: 2
+  _acceleration: 25
+  _deceleration: 35
+  _airControlMultiplier: 0.6
   _rotationSpeed: 10
+  _jumpForce: 9
+  _maxJumpCount: 2
+  _coyoteTime: 0.12
+  _jumpBufferTime: 0.12
+  _gravityStrength: 1.5
+  _fallGravityMultiplier: 3
+  _lowJumpGravityMultiplier: 4
   _groundLayerMask:
     serializedVersion: 2
     m_Bits: 1
   _groundedOffset: -0.14
+  _groundCheckRadius: 0.3
   _initialPosition: {x: 0, y: 0, z: 0}
 --- !u!143 &1594576065
 CharacterController:

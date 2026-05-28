@@ -26,21 +26,41 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private Transform _modelTransform;
 
     [Header("Movement Settings")]
-    [SerializeField] 
+    [SerializeField]
     private float _moveSpeed = 5f;
-    [SerializeField] 
-    private float _jumpForce = 10f;
-    [SerializeField] 
-    private float _gravityMultiplier = 2f;
-    [SerializeField] 
+    [SerializeField]
+    private float _acceleration = 25f;
+    [SerializeField]
+    private float _deceleration = 35f;
+    [SerializeField]
+    private float _airControlMultiplier = 0.6f;
+    [SerializeField]
     private float _rotationSpeed = 10f;
 
+    [Header("Jump Settings")]
+    [SerializeField]
+    private float _jumpForce = 10f;
+    [SerializeField]
+    private int _maxJumpCount = 2;
+    [SerializeField]
+    private float _coyoteTime = 0.12f;
+    [SerializeField]
+    private float _jumpBufferTime = 0.12f;
+    [SerializeField]
+    private float _gravityStrength = 2.5f;
+    [SerializeField]
+    private float _fallGravityMultiplier = 3f;
+    [SerializeField]
+    private float _lowJumpGravityMultiplier = 4f;
+
     [Header("Ground Check")]
-    [SerializeField] 
+    [SerializeField]
     private LayerMask _groundLayerMask;
-    [SerializeField] 
-    private float _groundedOffset = -0.14f;
-    
+    [SerializeField]
+    private float _groundedOffset = 0.08f;
+    [SerializeField]
+    private float _groundCheckRadius = 0.22f;
+        
     [Header("Respawn data")]
     [SerializeField] 
     private Vector3 _initialPosition = new Vector3(0f, 0f, 0f);
@@ -54,17 +74,24 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private float _strafeDirectionZ = 1f;
     private bool _isWalking = false;
     private bool _isStopped = true;
-    private bool _movementInputHeld = false;
-    
 
-    private void Start()
+    private bool _movementInputHeld = false;
+    private int _jumpCount;
+    private float _coyoteTimeCounter;
+    private float _jumpBufferCounter;
+    private bool _isJumpHeld;
+
+    private void OnEnable()
     {
         _inputReader.onJumpPerformed += OnJump;
+        _inputReader.onJumpCanceled += OnJumpCanceled;
     }
 
     private void Update()
     {
         GroundedCheck();
+        UpdateJumpState();
+        HandleJump();
         CalculateMoveDirection();
         CheckIfStopped();
         FaceMoveDirection();
@@ -78,7 +105,20 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         _moveDirection = new Vector3(_inputReader._moveComposite.x, 0f, 0f);
         _movementInputHeld = _moveDirection.magnitude > 0.01f;
 
-        _velocity.x = _moveDirection.x * _moveSpeed;
+        float targetSpeedX = _moveDirection.x * _moveSpeed;
+        float speedChangeRate = _movementInputHeld ? _acceleration : _deceleration;
+
+        if (!_isGrounded)
+        {
+            speedChangeRate *= _airControlMultiplier;
+        }
+
+        _velocity.x = Mathf.MoveTowards(
+            _velocity.x,
+            targetSpeedX,
+            speedChangeRate * Time.deltaTime
+        );
+
         _velocity.z = 0f;
 
         _speed2D = new Vector3(_velocity.x, 0f, _velocity.z).magnitude;
@@ -127,24 +167,70 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
 
     private void OnJump()
     {
+        _jumpBufferCounter = _jumpBufferTime;
+        _isJumpHeld = true;
+    }
+    private void OnJumpCanceled()
+    {
+        _isJumpHeld = false;
+    }
+    private void UpdateJumpState()
+    {
         if (_isGrounded)
         {
-            _velocity.y = _jumpForce;
-            _animator.SetBool(_isJumpingAnimHash, true);
+            _coyoteTimeCounter = _coyoteTime;
+            _jumpCount = 0;
+
+            if (_velocity.y < 0f)
+            {
+                _velocity.y = -2f;
+            }
+        }
+        else
+        {
+            _coyoteTimeCounter -= Time.deltaTime;
+        }
+
+        if (_jumpBufferCounter > 0f)
+        {
+            _jumpBufferCounter -= Time.deltaTime;
         }
     }
+    private void HandleJump()
+    {
+        if (_jumpBufferCounter <= 0f)
+        {
+            return;
+        }
 
+        bool canUseGroundJump = _isGrounded || _coyoteTimeCounter > 0f;
+        bool canUseAirJump = !_isGrounded && _jumpCount < _maxJumpCount;
+
+        if (!canUseGroundJump && !canUseAirJump)
+        {
+            return;
+        }
+
+        _velocity.y = _jumpForce;
+
+        _jumpBufferCounter = 0f;
+        _coyoteTimeCounter = 0f;
+        _jumpCount++;
+    }
     private void ApplyGravity()
     {
-        if (_velocity.y > Physics.gravity.y)
+        float gravityMultiplier = 1f;
+
+        if (_velocity.y < 0f)
         {
-            _velocity.y += Physics.gravity.y * _gravityMultiplier * Time.deltaTime;
+            gravityMultiplier = _fallGravityMultiplier;
+        }
+        else if (_velocity.y > 0f && !_isJumpHeld)
+        {
+            gravityMultiplier = _lowJumpGravityMultiplier;
         }
 
-        if (_velocity.y <= 0f)
-        {
-            _animator.SetBool(_isJumpingAnimHash, false);
-        }
+        _velocity.y += Physics.gravity.y * gravityMultiplier * Time.deltaTime;
     }
 
     private void Move()
@@ -155,11 +241,19 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
     private void GroundedCheck()
     {
         Vector3 spherePosition = new Vector3(
-            _controller.transform.position.x,
-            _controller.transform.position.y - _groundedOffset,
-            _controller.transform.position.z
+            transform.position.x,
+            transform.position.y + _controller.center.y - (_controller.height * 0.5f) + _groundedOffset,
+            transform.position.z
         );
-        _isGrounded = Physics.CheckSphere(spherePosition, _controller.radius, _groundLayerMask, QueryTriggerInteraction.Ignore);
+
+        bool groundDetected = Physics.CheckSphere(
+            spherePosition,
+            _groundCheckRadius,
+            _groundLayerMask,
+            QueryTriggerInteraction.Ignore
+        );
+
+        _isGrounded = groundDetected && _velocity.y <= 0.1f;
     }
 
     private void UpdateAnimator()
@@ -167,6 +261,7 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         _animator.SetFloat(_moveSpeedHash, _speed2D);
         _animator.SetInteger(_currentGaitHash, _currentGait);
         _animator.SetBool(_isGroundedHash, _isGrounded);
+        _animator.SetBool(_isJumpingAnimHash, !_isGrounded);
         _animator.SetFloat(_strafeDirectionXHash, _strafeDirectionX);
         _animator.SetFloat(_strafeDirectionZHash, _strafeDirectionZ);
         _animator.SetFloat(_isStrafingHash, 0f);
@@ -175,9 +270,10 @@ public class SimpleCharacterController : MonoBehaviour, IPlayerObject
         _animator.SetBool(_movementInputHeldHash, _movementInputHeld);
     }
 
-    private void OnDestroy()
+    private void OnDisable()
     {
         _inputReader.onJumpPerformed -= OnJump;
+        _inputReader.onJumpCanceled -= OnJumpCanceled;
     }
 
     public void KillZoneEntered()

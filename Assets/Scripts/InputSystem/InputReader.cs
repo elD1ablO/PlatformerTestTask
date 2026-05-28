@@ -29,6 +29,7 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
         public Action onCrouchDeactivated;
 
         public Action onJumpPerformed;
+        public Action onJumpCanceled;
 
         public Action onLockOnToggled;
 
@@ -80,12 +81,16 @@ namespace Synty.AnimationBaseLocomotion.Samples.InputSystem
         /// <param name="context">The context of the callback.</param>
         public void OnJump(InputAction.CallbackContext context)
         {
-            if (!context.performed)
+            if (context.performed)
             {
+                onJumpPerformed?.Invoke();
                 return;
             }
 
-            onJumpPerformed?.Invoke();
+            if (context.canceled)
+            {
+                onJumpCanceled?.Invoke();
+            }
         }
 
         /// <summary>
